@@ -77,7 +77,7 @@ if uploaded_file is not None:
             try:
                 # Dòng này đã được thụt lề đúng chuẩn
                 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"]) 
-                model = genai.GenerativeModel('gemini-1.5-flash')
+                model = genai.GenerativeModel('gemini-1.5-flash-latest')
                 
                 prompt = "Đây là giao diện cấm chọn giải đấu LOL. Hãy nhìn vào 10 vị tướng được chọn (khung to nhất). Liệt kê tên tiếng Anh chuẩn của 10 vị tướng này, cách nhau bằng dấu phẩy. Chỉ trả về chuỗi văn bản, không giải thích."
                 response = model.generate_content([prompt, img])
