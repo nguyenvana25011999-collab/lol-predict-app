@@ -8,10 +8,14 @@ from sklearn.preprocessing import MultiLabelBinarizer
 st.set_page_config(page_title="LOL Pro Stats & Predict", layout="wide")
 st.title("Thống Kê & Dự Đoán Giải Đấu LOL Chuyên Nghiệp")
 
-# Cache dữ liệu để không tải lại liên tục
-@st.cache_data(ttl=86400) # Cache 1 ngày
+# Cache dữ liệu
+@st.cache_data(ttl=86400)
 def fetch_and_train():
     url = "https://lol.fandom.com/api.php"
+    # Bổ sung Headers để giả lập trình duyệt, vượt qua tường lửa
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    }
     params = {
         "action": "cargoquery", "format": "json",
         "tables": "ScoreboardGames=SG",
@@ -19,7 +23,14 @@ def fetch_and_train():
         "where": "SG.Tournament LIKE '%LCK%' OR SG.Tournament LIKE '%LPL%' OR SG.Tournament LIKE '%LEC%' OR SG.Tournament LIKE '%MSI%'",
         "limit": 500
     }
-    res = requests.get(url, params=params).json()
+    
+    # Gắn headers vào Request
+    res = requests.get(url, headers=headers, params=params).json()
+    
+    # Bắt lỗi nếu API vẫn trả về rỗng
+    if 'cargoquery' not in res:
+        return None, None, None
+
     df = pd.DataFrame([item['title'] for item in res['cargoquery']])
     
     df['Team1Picks'] = df['Team1Picks'].apply(lambda x: x.split(',') if pd.notnull(x) else [])
@@ -35,22 +46,30 @@ def fetch_and_train():
     rf_kills = RandomForestRegressor(n_estimators=100, random_state=42).fit(X, df['TotalKills'])
     return rf_time, rf_kills, mlb
 
-with st.spinner('Đang tải dữ liệu và huấn luyện mô hình...'):
+with st.spinner('Đang tải dữ liệu API và huấn luyện mô hình học máy...'):
     model_time, model_kills, encoder = fetch_and_train()
 
-# Form nhập liệu dự đoán
+# Form nhập liệu
 st.subheader("Dự đoán trận đấu")
 picks_input = st.text_input("Nhập 10 tướng (Cách nhau bằng dấu phẩy):", "Aatrox, Sejuani, Azir, Lucian, Nami, Ornn, Maokai, Sylas, Zeri, Lulu")
 
 if st.button("Phân tích"):
-    picks = [x.strip() for x in picks_input.split(',')]
-    if len(picks) == 10:
-        X_input = encoder.transform([picks])
-        pred_time = model_time.predict(X_input)[0]
-        pred_kills = model_kills.predict(X_input)[0]
-        
-        col1, col2 = st.columns(2)
-        col1.metric("Dự đoán thời gian trận", f"{pred_time:.1f} phút")
-        col2.metric("Dự đoán tổng Kills", f"{pred_kills:.0f} mạng")
+    if model_time is None:
+        st.error("Lỗi mất kết nối với máy chủ dữ liệu Leaguepedia. Vui lòng thử lại sau!")
     else:
-        st.error("Vui lòng nhập chính xác 10 tướng.")
+        picks = [x.strip() for x in picks_input.split(',')]
+        if len(picks) == 10:
+            # Bỏ qua các tướng chưa từng xuất hiện trong dữ liệu để tránh lỗi AI
+            valid_picks = [p for p in picks if p in encoder.classes_]
+            if len(valid_picks) < 10:
+                st.warning(f"Cảnh báo: Các tướng chưa có dữ liệu thi đấu chuyên nghiệp: {set(picks) - set(valid_picks)}")
+                
+            X_input = encoder.transform([picks])
+            pred_time = model_time.predict(X_input)[0]
+            pred_kills = model_kills.predict(X_input)[0]
+            
+            col1, col2 = st.columns(2)
+            col1.metric("Dự đoán thời gian trận", f"{pred_time:.1f} phút")
+            col2.metric("Dự đoán tổng Kills", f"{pred_kills:.0f} mạng")
+        else:
+            st.error("Vui lòng nhập chính xác 10 tướng.")
