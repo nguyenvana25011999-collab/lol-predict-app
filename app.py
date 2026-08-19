@@ -123,11 +123,16 @@ st.subheader("Phân tích phong cách thi đấu các đội (Meta Radar)")
 
 @st.cache_data(ttl=86400)
 def fetch_team_playstyle():
+    # Mở rộng dữ liệu thống kê đa khu vực
     data = {
-        "Team": ["T1", "GEN", "JDG", "BLG", "G2", "FNC", "LNG", "WBG", "DK", "KT"],
-        "Region": ["LCK", "LCK", "LPL", "LPL", "LEC", "LEC", "LPL", "LPL", "LCK", "LCK"],
-        "CKPM": [0.65, 0.58, 0.85, 0.92, 0.75, 0.78, 0.70, 0.82, 0.60, 0.68], 
-        "GPM": [1950, 1980, 1920, 1850, 1790, 1750, 1890, 1820, 1880, 1900]   
+        "Team": ["T1", "GEN", "JDG", "BLG", "G2", "FNC", "LNG", "WBG", "DK", "KT", 
+                 "GAM", "TW", "C9", "FLY", "HLE", "TES", "MAD", "BDS"],
+        "Region": ["LCK", "LCK", "LPL", "LPL", "LEC", "LEC", "LPL", "LPL", "LCK", "LCK", 
+                   "VCS", "VCS", "LCS", "LCS", "LCK", "LPL", "LEC", "LEC"],
+        "CKPM": [0.65, 0.58, 0.85, 0.92, 0.75, 0.78, 0.70, 0.82, 0.60, 0.68, 
+                 0.88, 0.80, 0.62, 0.65, 0.61, 0.89, 0.77, 0.72], 
+        "GPM": [1950, 1980, 1920, 1850, 1790, 1750, 1890, 1820, 1880, 1900, 
+                1700, 1720, 1810, 1800, 1910, 1880, 1760, 1740]   
     }
     return pd.DataFrame(data)
 
