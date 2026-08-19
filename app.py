@@ -7,16 +7,17 @@ import plotly.express as px
 import google.generativeai as genai
 from PIL import Image
 
-# Cấu hình trang
+# ==========================================
+# CẤU HÌNH TRANG
+# ==========================================
 st.set_page_config(page_title="LOL Pro Stats & Predict", layout="wide")
 st.title("Thống Kê & Dự Đoán Giải Đấu LOL Chuyên Nghiệp")
 
 # ==========================================
-# 1. HỆ THỐNG MÔ HÌNH HỌC MÁY (DỰ ĐOÁN TRẬN ĐẤU)
+# 1. HỆ THỐNG MÔ HÌNH HỌC MÁY
 # ==========================================
 @st.cache_data(ttl=86400)
 def fetch_and_train():
-    # Sử dụng Mock Data để chống lỗi Cloudflare
     mock_data = [
         {"Tournament": "LCK", "Team1Picks": "Aatrox,Sejuani,Azir,Lucian,Nami", "Team2Picks": "Ornn,Maokai,Sylas,Zeri,Lulu", "Gamelength_Number": "35", "Team1Kills": "12", "Team2Kills": "8"},
         {"Tournament": "LPL", "Team1Picks": "Renekton,Vi,Ahri,Aphelios,Thresh", "Team2Picks": "Sion,Wukong,Syndra,Jinx,Nautilus", "Gamelength_Number": "28", "Team1Kills": "22", "Team2Kills": "18"},
@@ -43,7 +44,7 @@ with st.spinner('Đang nạp hệ thống AI...'):
     model_time, model_kills, encoder = fetch_and_train()
 
 # ==========================================
-# 2. TÍCH HỢP TÍNH NĂNG NHẬN DIỆN ẢNH BẰNG AI (VÁ LỖI LOCKE)
+# 2. NHẬN DIỆN ẢNH BẰNG AI (VÁ LỖI LOCKE & BẢO MẬT KẾT NỐI)
 # ==========================================
 st.markdown("---")
 st.subheader("📷 Tự động nhận diện tướng từ ảnh Ban/Pick")
@@ -57,11 +58,9 @@ if uploaded_file is not None:
     if st.button("Quét và Nhận diện ảnh"):
         with st.spinner("AI thị giác đang phân tích khuôn mặt tướng..."):
             try:
-                # Lấy API Key từ kho bảo mật của Streamlit
                 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"]) 
                 model = genai.GenerativeModel('gemini-3.7-flash')
                 
-                # Prompt đã được nâng cấp bối cảnh để tránh nhầm Ezreal thành Locke
                 prompt = "Đây là giao diện cấm chọn giải đấu LOL. Hãy nhìn vào 10 vị tướng được chọn (khung to nhất). Liệt kê tên tiếng Anh chuẩn của 10 vị tướng này, cách nhau bằng dấu phẩy. Chỉ trả về chuỗi văn bản, không giải thích. Chú ý: AI thường nhầm lẫn vị tướng ở đội 2 (Peyz) là Ezreal, nhưng nếu thấy tóc vàng, kính và áo vest xanh thì đó là vị tướng tên 'Locke'. Hãy đảm bảo nhận diện chính xác Locke."
                 
                 response = model.generate_content([prompt, img])
@@ -77,18 +76,18 @@ if uploaded_file is not None:
                     st.error(f"Lỗi kết nối API: {e}")
 
 # ==========================================
-# 3. GIAO DIỆN PHÂN TÍCH VÀ DỰ ĐOÁN (BẢNG 2 CỘT)
+# 3. GIAO DIỆN PHÂN TÍCH VÀ DỰ ĐOÁN (BẢNG 2 CỘT CHUẨN)
 # ==========================================
 st.markdown("---")
 st.subheader("Dự đoán trận đấu")
-tournament_input = st.selectbox("Chọn giải đấu:", ["LCK", "LPL", "LEC", "MSI"])
+tournament_input = st.selectbox("Chọn giải đấu:", ["LCK", "LPL", "LEC", "MSI", "VCS"])
 picks_input = st.text_input("Nhập 10 tướng (Cách nhau bằng dấu phẩy):", "Jax, Rell, Xin Zhao, Jhin, Orianna, Camille, Locke, Vi, Olaf, Kai'Sa")
 
 if st.button("Phân tích"):
     picks = [x.strip() for x in picks_input.split(',')]
     if len(picks) == 10:
         
-        # Tạo bảng 2 cột đối chiếu Đội 1 vs Đội 2
+        # Thiết lập bảng 2 cột đối chiếu
         st.markdown("### 📋 Đội hình thi đấu")
         roles = ["Top (Đường trên)", "Jungle (Đi rừng)", "Mid (Đường giữa)", "ADC (Xạ thủ)", "Support (Hỗ trợ)"]
         df_lineup = pd.DataFrame({
@@ -98,10 +97,7 @@ if st.button("Phân tích"):
         })
         st.table(df_lineup)
         
-        # Chạy dự đoán
         features = picks + [tournament_input]
-        # Xử lý các tướng mới (như Locke) chưa có trong dữ liệu huấn luyện
-        # Bỏ qua các tướng lạ để tránh lỗi biến đổi (transform)
         valid_features = [f for f in features if f in encoder.classes_]
         X_input = encoder.transform([valid_features])
         
@@ -116,14 +112,13 @@ if st.button("Phân tích"):
         st.error("Lỗi: Vui lòng nhập chính xác 10 tướng.")
 
 # ==========================================
-# 4. BIỂU ĐỒ TRỰC QUAN HÓA LỐI CHƠI (SCATTER PLOT)
+# 4. BIỂU ĐỒ TRỰC QUAN HÓA LỐI CHƠI (BỘ DỮ LIỆU MỞ RỘNG)
 # ==========================================
 st.markdown("---")
 st.subheader("Phân tích phong cách thi đấu các đội (Meta Radar)")
 
 @st.cache_data(ttl=86400)
 def fetch_team_playstyle():
-    # Mở rộng dữ liệu thống kê đa khu vực
     data = {
         "Team": ["T1", "GEN", "JDG", "BLG", "G2", "FNC", "LNG", "WBG", "DK", "KT", 
                  "GAM", "TW", "C9", "FLY", "HLE", "TES", "MAD", "BDS"],
