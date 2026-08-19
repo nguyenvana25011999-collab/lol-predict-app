@@ -7,6 +7,7 @@ import plotly.express as px
 import google.generativeai as genai
 from PIL import Image
 
+# Cấu hình trang
 st.set_page_config(page_title="LOL Pro Stats & Predict", layout="wide")
 st.title("Thống Kê & Dự Đoán Giải Đấu LOL Chuyên Nghiệp")
 
@@ -15,40 +16,21 @@ st.title("Thống Kê & Dự Đoán Giải Đấu LOL Chuyên Nghiệp")
 # ==========================================
 @st.cache_data(ttl=86400)
 def fetch_and_train():
-    url = "https://lol.fandom.com/api.php"
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-    params = {
-        "action": "cargoquery", "format": "json",
-        "tables": "ScoreboardGames=SG",
-        "fields": "SG.Tournament, SG.Team1Picks, SG.Team2Picks, SG.Gamelength_Number, SG.Team1Kills, SG.Team2Kills",
-        "limit": 150
-    }
-    
-    try:
-        res = requests.get(url, headers=headers, params=params, timeout=5).json()
-        if 'cargoquery' in res and len(res['cargoquery']) > 0:
-            df = pd.DataFrame([item['title'] for item in res['cargoquery']])
-        else:
-            raise Exception("Bị Cloudflare chặn")
-    except:
-        mock_data = [
-            {"Tournament": "LCK", "Team1Picks": "Aatrox,Sejuani,Azir,Lucian,Nami", "Team2Picks": "Ornn,Maokai,Sylas,Zeri,Lulu", "Gamelength_Number": "35", "Team1Kills": "12", "Team2Kills": "8"},
-            {"Tournament": "LPL", "Team1Picks": "Renekton,Vi,Ahri,Aphelios,Thresh", "Team2Picks": "Sion,Wukong,Syndra,Jinx,Nautilus", "Gamelength_Number": "28", "Team1Kills": "22", "Team2Kills": "18"},
-            {"Tournament": "LEC", "Team1Picks": "Gwen,Lee Sin,LeBlanc,Xayah,Rakan", "Team2Picks": "K'Sante,Viego,Lissandra,Kaisa,Leona", "Gamelength_Number": "32", "Team1Kills": "15", "Team2Kills": "14"},
-            {"Tournament": "MSI", "Team1Picks": "Jax,Sejuani,Annie,Lucian,Nami", "Team2Picks": "Gragas,Vi,Ahri,Aphelios,Thresh", "Gamelength_Number": "30", "Team1Kills": "18", "Team2Kills": "15"}
-        ]
-        df = pd.DataFrame(mock_data * 50)
+    # Sử dụng Mock Data để chống lỗi Cloudflare
+    mock_data = [
+        {"Tournament": "LCK", "Team1Picks": "Aatrox,Sejuani,Azir,Lucian,Nami", "Team2Picks": "Ornn,Maokai,Sylas,Zeri,Lulu", "Gamelength_Number": "35", "Team1Kills": "12", "Team2Kills": "8"},
+        {"Tournament": "LPL", "Team1Picks": "Renekton,Vi,Ahri,Aphelios,Thresh", "Team2Picks": "Sion,Wukong,Syndra,Jinx,Nautilus", "Gamelength_Number": "28", "Team1Kills": "22", "Team2Kills": "18"},
+        {"Tournament": "LEC", "Team1Picks": "Gwen,Lee Sin,LeBlanc,Xayah,Rakan", "Team2Picks": "K'Sante,Viego,Lissandra,Kaisa,Leona", "Gamelength_Number": "32", "Team1Kills": "15", "Team2Kills": "14"},
+        {"Tournament": "MSI", "Team1Picks": "Jax,Sejuani,Annie,Lucian,Nami", "Team2Picks": "Gragas,Vi,Ahri,Aphelios,Thresh", "Gamelength_Number": "30", "Team1Kills": "18", "Team2Kills": "15"}
+    ]
+    df = pd.DataFrame(mock_data * 50)
 
     df['Team1Picks'] = df['Team1Picks'].apply(lambda x: x.split(',') if pd.notnull(x) else [])
     df['Team2Picks'] = df['Team2Picks'].apply(lambda x: x.split(',') if pd.notnull(x) else [])
     df['TotalKills'] = pd.to_numeric(df['Team1Kills'].fillna(0)) + pd.to_numeric(df['Team2Kills'].fillna(0))
     df['Gamelength_Number'] = pd.to_numeric(df['Gamelength_Number'].fillna(0))
     
-    def clean_tour(t):
-        for main in ["LCK", "LPL", "LEC", "MSI"]:
-            if main in str(t): return main
-        return str(t)
-    df['Tournament_Clean'] = df['Tournament'].apply(clean_tour)
+    df['Tournament_Clean'] = df['Tournament']
     df['Features'] = df['Team1Picks'] + df['Team2Picks'] + df['Tournament_Clean'].apply(lambda x: [x])
     
     mlb = MultiLabelBinarizer()
@@ -61,7 +43,7 @@ with st.spinner('Đang nạp hệ thống AI...'):
     model_time, model_kills, encoder = fetch_and_train()
 
 # ==========================================
-# 2. TÍCH HỢP TÍNH NĂNG NHẬN DIỆN ẢNH BẰNG AI
+# 2. TÍCH HỢP TÍNH NĂNG NHẬN DIỆN ẢNH BẰNG AI (VÁ LỖI LOCKE)
 # ==========================================
 st.markdown("---")
 st.subheader("📷 Tự động nhận diện tướng từ ảnh Ban/Pick")
@@ -75,11 +57,13 @@ if uploaded_file is not None:
     if st.button("Quét và Nhận diện ảnh"):
         with st.spinner("AI thị giác đang phân tích khuôn mặt tướng..."):
             try:
-                # Dòng này đã được thụt lề đúng chuẩn
+                # Lấy API Key từ kho bảo mật của Streamlit
                 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"]) 
-                model = genai.GenerativeModel('gemini-3.7-flash')
+                model = genai.GenerativeModel('gemini-2.5-flash')
                 
-                prompt = "Đây là giao diện cấm chọn giải đấu LOL. Hãy nhìn vào 10 vị tướng được chọn (khung to nhất). Liệt kê tên tiếng Anh chuẩn của 10 vị tướng này, cách nhau bằng dấu phẩy. Chỉ trả về chuỗi văn bản, không giải thích."
+                # Prompt đã được nâng cấp bối cảnh để tránh nhầm Ezreal thành Locke
+                prompt = "Đây là giao diện cấm chọn giải đấu LOL. Hãy nhìn vào 10 vị tướng được chọn (khung to nhất). Liệt kê tên tiếng Anh chuẩn của 10 vị tướng này, cách nhau bằng dấu phẩy. Chỉ trả về chuỗi văn bản, không giải thích. Chú ý: AI thường nhầm lẫn vị tướng ở đội 2 (Peyz) là Ezreal, nhưng nếu thấy tóc vàng, kính và áo vest xanh thì đó là vị tướng tên 'Locke'. Hãy đảm bảo nhận diện chính xác Locke."
+                
                 response = model.generate_content([prompt, img])
                 detected_picks = response.text.strip()
                 
@@ -87,25 +71,44 @@ if uploaded_file is not None:
                 st.info(f"**Kết quả:** {detected_picks}")
                 st.write("*(Bạn có thể sao chép chuỗi tướng phía trên để dán vào ô nhập liệu bên dưới)*")
             except Exception as e:
-                st.error(f"Lỗi kết nối hoặc cấu hình API: {e}")
+                if "429" in str(e) or "Quota" in str(e):
+                    st.warning("⏳ Máy chủ Google đang nghẽn (Giới hạn 5 ảnh/phút). Vui lòng đợi 60 giây rồi thử lại!")
+                else:
+                    st.error(f"Lỗi kết nối API: {e}")
 
 # ==========================================
-# 3. GIAO DIỆN PHÂN TÍCH VÀ DỰ ĐOÁN
+# 3. GIAO DIỆN PHÂN TÍCH VÀ DỰ ĐOÁN (BẢNG 2 CỘT)
 # ==========================================
 st.markdown("---")
 st.subheader("Dự đoán trận đấu")
 tournament_input = st.selectbox("Chọn giải đấu:", ["LCK", "LPL", "LEC", "MSI"])
-picks_input = st.text_input("Nhập 10 tướng (Cách nhau bằng dấu phẩy):", "Aatrox, Sejuani, Azir, Lucian, Nami, Ornn, Maokai, Sylas, Zeri, Lulu")
+picks_input = st.text_input("Nhập 10 tướng (Cách nhau bằng dấu phẩy):", "Jax, Rell, Xin Zhao, Jhin, Orianna, Camille, Locke, Vi, Olaf, Kai'Sa")
 
 if st.button("Phân tích"):
     picks = [x.strip() for x in picks_input.split(',')]
     if len(picks) == 10:
+        
+        # Tạo bảng 2 cột đối chiếu Đội 1 vs Đội 2
+        st.markdown("### 📋 Đội hình thi đấu")
+        roles = ["Top (Đường trên)", "Jungle (Đi rừng)", "Mid (Đường giữa)", "ADC (Xạ thủ)", "Support (Hỗ trợ)"]
+        df_lineup = pd.DataFrame({
+            "Vị trí": roles,
+            "Đội 1 (Blue Side)": picks[:5],
+            "Đội 2 (Red Side)": picks[5:]
+        })
+        st.table(df_lineup)
+        
+        # Chạy dự đoán
         features = picks + [tournament_input]
-        X_input = encoder.transform([features])
+        # Xử lý các tướng mới (như Locke) chưa có trong dữ liệu huấn luyện
+        # Bỏ qua các tướng lạ để tránh lỗi biến đổi (transform)
+        valid_features = [f for f in features if f in encoder.classes_]
+        X_input = encoder.transform([valid_features])
         
         pred_time = model_time.predict(X_input)[0]
         pred_kills = model_kills.predict(X_input)[0]
         
+        st.markdown("### 📊 Kết quả dự đoán")
         col1, col2 = st.columns(2)
         col1.metric("Dự đoán thời gian", f"{pred_time:.1f} phút")
         col2.metric("Dự đoán tổng Kills", f"{pred_kills:.0f} mạng")
@@ -147,11 +150,3 @@ fig = px.scatter(
 fig.update_traces(textposition='top center', marker=dict(size=12))
 fig.update_layout(height=500)
 st.plotly_chart(fig, use_container_width=True)
-
-st.info("""
-**Cách đọc biểu đồ:**
-*   **Góc trên bên phải:** Toàn diện (Giao tranh nhiều, farm tốt).
-*   **Góc trên bên trái:** Khát máu (Giao tranh liên tục, bỏ qua lính).
-*   **Góc dưới bên phải:** Kiểm soát (Né giao tranh, tập trung farm vàng).
-*   **Góc dưới bên trái:** Bị động (Thua thiệt cả giao tranh lẫn tài nguyên).
-""")
