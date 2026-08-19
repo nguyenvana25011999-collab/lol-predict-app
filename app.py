@@ -59,7 +59,7 @@ if uploaded_file is not None:
             try:
                 # Lấy API Key từ kho bảo mật của Streamlit
                 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"]) 
-                model = genai.GenerativeModel('gemini-2.5-flash')
+                model = genai.GenerativeModel('gemini-3.7-flash')
                 
                 # Prompt đã được nâng cấp bối cảnh để tránh nhầm Ezreal thành Locke
                 prompt = "Đây là giao diện cấm chọn giải đấu LOL. Hãy nhìn vào 10 vị tướng được chọn (khung to nhất). Liệt kê tên tiếng Anh chuẩn của 10 vị tướng này, cách nhau bằng dấu phẩy. Chỉ trả về chuỗi văn bản, không giải thích. Chú ý: AI thường nhầm lẫn vị tướng ở đội 2 (Peyz) là Ezreal, nhưng nếu thấy tóc vàng, kính và áo vest xanh thì đó là vị tướng tên 'Locke'. Hãy đảm bảo nhận diện chính xác Locke."
