@@ -67,7 +67,8 @@ if uploaded_file is not None:
                 detected_picks = response.text.strip()
                 
                 st.success("Nhận diện hoàn tất!")
-                st.info(f"**Kết quả:** {detected_picks}")
+                # Khung hiển thị kết quả có sẵn nút Copy tự động của Streamlit
+                st.code(detected_picks, language="text")
                 st.write("*(Bạn có thể sao chép chuỗi tướng phía trên để dán vào ô nhập liệu bên dưới)*")
             except Exception as e:
                 if "429" in str(e) or "Quota" in str(e):
