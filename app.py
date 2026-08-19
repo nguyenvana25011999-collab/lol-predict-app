@@ -16,7 +16,7 @@ def fetch_and_train():
         "tables": "ScoreboardGames=SG",
         "fields": "SG.Tournament, SG.Team1Picks, SG.Team2Picks, SG.Gamelength_Number, SG.Team1Kills, SG.Team2Kills",
         "where": "SG.Tournament LIKE '%LCK%' OR SG.Tournament LIKE '%LPL%' OR SG.Tournament LIKE '%LEC%' OR SG.Tournament LIKE '%MSI%'",
-        "limit": 500
+        "limit": 150
     }
     res = requests.get(url, headers=headers, params=params).json()
     if 'cargoquery' not in res: return None, None, None
